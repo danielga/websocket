@@ -1,0 +1,69 @@
+websocket.state = {}
+websocket.state.CONNECTING = 1
+websocket.state.OPEN = 2
+websocket.state.CLOSING = 3
+websocket.state.CLOSED = 4
+
+websocket.utilities = {}
+
+local crypt = require("crypt")
+if crypt == true or crypt == nil then crypt = _G.crypt end
+
+local unpack = unpack
+local tinsert, tconcat = table.insert, table.concat
+local sbyte, schar = string.byte, string.char
+local bxor = bit.bxor
+
+websocket.utilities.sha1 = crypt.sha1
+websocket.utilities.base64encode = crypt.base64Encode or util.Base64Encode
+
+function websocket.utilities.xor_mask(data, mask)
+	local payload = #data
+	local transformed_arr = {}
+	for p = 1, payload, 2000 do
+		local transformed = {}
+		local top = p + 1999
+		local last = top > payload and payload or top
+		local original = {sbyte(data, p, last)}
+		for i = 1, #original do
+			local j = (i - 1) % 4 + 1
+			transformed[i] = bxor(original[i], mask[j])
+		end
+
+		local xored = schar(unpack(transformed))
+		tinsert(transformed_arr, xored)
+	end
+
+	return tconcat(transformed_arr)
+end
+
+function websocket.utilities.http_headers(request)
+	if not request:match(".*HTTP/1%.1") then
+		return nil
+	end
+
+	request = request:match("[^\r\n]+\r\n(.*)")
+
+	local headers = {}
+	for line in request:gmatch("[^\r\n]*\r\n") do
+		local name, val = line:match("([^%s]+)%s*:%s*([^\r\n]+)")
+		if name and val then
+			name = name:lower()
+			if not name:match("sec%-websocket") then
+				val = val:lower()
+			end
+
+			if not headers[name] then
+				headers[name] = val
+			else
+				headers[name] = headers[name] .. "," .. val
+			end
+		elseif line == "\r\n" then
+			break
+		else
+			assert(false, line .. "(" .. #line .. ")")
+		end
+	end
+
+	return headers, request:match("\r\n\r\n(.*)")
+end
