@@ -1,7 +1,7 @@
 websocket = {}
 
---include("frame.lua")
---include("utilities.lua")
+include("frame.lua")
+include("utilities.lua")
 
 local socket = require("luasocket")
 if socket == true or socket == nil then socket = _G.socket end
@@ -62,21 +62,21 @@ function WSSERVERCONNECTION:__Think()
 	if not self:IsValid() then return end
 
 	if self.state == websocket.state.CONNECTING then
-		local lines = {}
+		local headers = {}
 		local data, err = self:__Receive()
 		while data and not err do
 			if #data == 0 then
-				table.insert(lines, "\r\n")
+				table.insert(headers, "")
 				break
 			end
 
-			table.insert(lines, data)
+			table.insert(headers, data)
 
 			data, err = self:__Receive()
 		end
 
 		if not err then
-			local headers = websocket.utilities.http_headers(table.concat(lines, "\r\n"))
+			headers = websocket.utilities.http_headers(headers)
 			if headers then
 				local key = headers["sec-websocket-key"]
 				key = strwithstr:format(key, magickey)

@@ -38,14 +38,14 @@ function websocket.utilities.xor_mask(data, mask)
 end
 
 function websocket.utilities.http_headers(request)
-	if not request:match(".*HTTP/1%.1") then
-		return nil
-	end
+	assert(type(request) == "table", "parameter #1 is not a table")
+	assert(request[1] and request[1]:match(".*HTTP/1%.1"), "parameter #1 (table) doesn't contain data or doesn't contain a HTTP request on key 1")
 
-	request = request:match("[^\r\n]+\r\n(.*)")
+	table.remove(request, 1)
 
 	local headers = {}
-	for line in request:gmatch("[^\r\n]*\r\n") do
+	for i = 1, #request do
+		local line = request[1]
 		local name, val = line:match("([^%s]+)%s*:%s*([^\r\n]+)")
 		if name and val then
 			name = name:lower()
@@ -58,12 +58,12 @@ function websocket.utilities.http_headers(request)
 			else
 				headers[name] = headers[name] .. "," .. val
 			end
-		elseif line == "\r\n" then
+		elseif line == "" then
 			break
 		else
 			assert(false, line .. "(" .. #line .. ")")
 		end
 	end
 
-	return headers, request:match("\r\n\r\n(.*)")
+	return headers
 end

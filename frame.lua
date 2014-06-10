@@ -66,8 +66,7 @@ function websocket.frame.decodeheader(header)
 		minlen = minlen + 2
 		if headerlen >= minlen then
 			length = {header:byte(minlen - 1, minlen)}
-			length =	bit.lshift(length[1], 8) +
-						length[2]
+			length = bit.lshift(length[1], 8) + length[2]
 		else
 			complete = false
 		end
