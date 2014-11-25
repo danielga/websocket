@@ -6,16 +6,16 @@ websocket.state.CLOSED = 4
 
 websocket.utilities = {}
 
-local crypt = require("crypt")
-if crypt == true or crypt == nil then crypt = _G.crypt end
-
 local unpack = unpack
 local tinsert, tconcat = table.insert, table.concat
 local sbyte, schar = string.byte, string.char
 local bxor = bit.bxor
 
-websocket.utilities.sha1 = crypt.sha1
-websocket.utilities.base64encode = crypt.base64Encode or util.Base64Encode
+include("sha1.lua")
+websocket.utilities.sha1 = sha1
+sha1 = nil
+
+websocket.utilities.base64encode = util.Base64Encode
 
 function websocket.utilities.xor_mask(data, mask)
 	local payload = #data
