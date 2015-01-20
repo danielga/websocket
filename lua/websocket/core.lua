@@ -14,7 +14,9 @@ function WSSERVERCONNECTION:SetReceiveCallback(func)
 end
 
 function WSSERVERCONNECTION:Shutdown()
-	if not self:IsValid() then return end
+	if not self:IsValid() then
+		return
+	end
 
 	self.socket:shutdown("both")
 	self.socket:close()
@@ -26,7 +28,9 @@ function WSSERVERCONNECTION:IsValid()
 end
 
 function WSSERVERCONNECTION:GetRemoteAddress()
-	if not self:IsValid() then return "", 0 end
+	if not self:IsValid() then
+		return "", 0
+	end
 
 	return self.socket:getsockname()
 end
@@ -36,14 +40,18 @@ function WSSERVERCONNECTION:GetState()
 end
 
 function WSSERVERCONNECTION:Send(data, opcode, masked, fin)
-	if not self:IsValid() then return false end
+	if not self:IsValid() then
+		return false
+	end
 
 	local data = websocket.frame.encode(data, opcode, masked, fin)
 	return self.socket:send(data) == #data
 end
 
 function WSSERVERCONNECTION:__Receive(pattern)
-	if not self:IsValid() then return false end
+	if not self:IsValid() then
+		return false
+	end
 
 	local data, err, part = self.socket:receive(pattern)
 	if err == "closed" then
@@ -59,7 +67,9 @@ local magickey = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 local wsaccept = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: %s\r\nSec-WebSocket-Accept: %s\r\n\r\n"
 
 function WSSERVERCONNECTION:__Think()
-	if not self:IsValid() then return end
+	if not self:IsValid() then
+		return
+	end
 
 	if self.state == websocket.state.CONNECTING then
 		local headers = {}
@@ -125,7 +135,9 @@ function WSSERVER:SetAcceptCallback(func)
 end
 
 function WSSERVER:Shutdown()
-	if not self:IsValid() then return end
+	if not self:IsValid() then
+		return
+	end
 
 	for i = 1, self.numconnections do
 		self.connections[i]:Shutdown()
@@ -143,7 +155,9 @@ function WSSERVER:IsValid()
 end
 
 function WSSERVER:__Think()
-	if not self:IsValid() then return end
+	if not self:IsValid() then
+		return
+	end
 
 	local client = self.socket:accept()
 	if client then
@@ -160,7 +174,9 @@ function WSSERVER:__Think()
 
 	local r = 0
 	for i = 1, self.numconnections do
-		if i > self.numconnections - r then break end
+		if i > self.numconnections - r then
+			break
+		end
 
 		self.connections[i - r]:__Think()
 		if self.connections[i - r]:GetState() == websocket.state.CLOSED then
@@ -196,7 +212,9 @@ function WSCLIENT:SetReceiveCallback(func)
 end
 
 function WSCLIENT:Shutdown()
-	if not self:IsValid() then return end
+	if not self:IsValid() then
+		return
+	end
 
 	self.socket:shutdown("both")
 	self.socket:close()
@@ -209,7 +227,9 @@ function WSCLIENT:IsValid()
 end
 
 function WSCLIENT:GetRemoteAddress()
-	if not self:IsValid() then return "", 0 end
+	if not self:IsValid() then
+		return "", 0
+	end
 
 	return self.socket:getsockname()
 end
@@ -219,7 +239,9 @@ function WSCLIENT:GetState()
 end
 
 function WSCLIENT:Send(data, opcode, fin)
-	if not self:IsValid() then return false end
+	if not self:IsValid() then
+		return false
+	end
 
 	local data = websocket.frame.encode(data, opcode, true, fin)
 	return self.socket:send(data) == #data
@@ -228,7 +250,9 @@ end
 local wsclient = "GET /%s HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n"
 
 function WSCLIENT:__Think()
-	if not self:IsValid() then return end
+	if not self:IsValid() then
+		return
+	end
 
 	if self.state == websocket.state.CONNECTING then
 		if not self.key then
