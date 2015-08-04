@@ -1,4 +1,4 @@
-sha1 = {
+local sha1 = {
 	_VERSION = "sha.lua 0.5.0",
 	_URL = "https://github.com/kikito/sha.lua",
 	_DESCRIPTION = [[
@@ -31,6 +31,7 @@ sha1 = {
 		SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	]]
 }
+websocket.utilities.SHA1 = sha1
 
 -----------------------------------------------------------------------------------
 

@@ -1,19 +1,27 @@
-websocket = {}
+websocket = websocket or {}
 
 include("frame.lua")
 include("utilities.lua")
 
 local socket = require("luasocket")
-if socket == true or socket == nil then socket = _G.socket end
+if socket == true or socket == nil then
+	socket = _G.socket
+end
 
-local WSSERVERCONNECTION = {}
-WSSERVERCONNECTION.__index = WSSERVERCONNECTION
+local random = math.random
+local insert, remove = table.insert, table.remove
+local format, char, match = string.format, string.char, string.match
+local setmetatable, assert, unpack, print = setmetatable, assert, unpack, print
+local hook_Add, hook_Remove = hook.Add, hook.Remove
 
-function WSSERVERCONNECTION:SetReceiveCallback(func)
+local CONNECTION = {}
+CONNECTION.__index = CONNECTION
+
+function CONNECTION:SetReceiveCallback(func)
 	self.recvcallback = func
 end
 
-function WSSERVERCONNECTION:Shutdown()
+function CONNECTION:Shutdown()
 	if not self:IsValid() then
 		return
 	end
@@ -23,11 +31,11 @@ function WSSERVERCONNECTION:Shutdown()
 	self.socket = nil
 end
 
-function WSSERVERCONNECTION:IsValid()
+function CONNECTION:IsValid()
 	return self.socket ~= nil
 end
 
-function WSSERVERCONNECTION:GetRemoteAddress()
+function CONNECTION:GetRemoteAddress()
 	if not self:IsValid() then
 		return "", 0
 	end
@@ -35,20 +43,20 @@ function WSSERVERCONNECTION:GetRemoteAddress()
 	return self.socket:getsockname()
 end
 
-function WSSERVERCONNECTION:GetState()
+function CONNECTION:GetState()
 	return self.state
 end
 
-function WSSERVERCONNECTION:Send(data, opcode, masked, fin)
+function CONNECTION:Send(data, opcode, masked, fin)
 	if not self:IsValid() then
 		return false
 	end
 
-	local data = websocket.frame.encode(data, opcode, masked, fin)
+	local data = websocket.frame.Encode(data, opcode, masked, fin)
 	return self.socket:send(data) == #data
 end
 
-function WSSERVERCONNECTION:__Receive(pattern)
+function CONNECTION:Receive(pattern)
 	if not self:IsValid() then
 		return false
 	end
@@ -62,56 +70,54 @@ function WSSERVERCONNECTION:__Receive(pattern)
 	return err and part or data, err
 end
 
-local strwithstr = "%s%s"
-local magickey = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-local wsaccept = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: %s\r\nSec-WebSocket-Accept: %s\r\n\r\n"
-
-function WSSERVERCONNECTION:__Think()
+function CONNECTION:Think()
 	if not self:IsValid() then
 		return
 	end
 
 	if self.state == websocket.state.CONNECTING then
 		local headers = {}
-		local data, err = self:__Receive()
+		local data, err = self:Receive()
 		while data and not err do
 			if #data == 0 then
-				table.insert(headers, "")
+				insert(headers, "")
 				break
 			end
 
-			table.insert(headers, data)
+			insert(headers, data)
 
-			data, err = self:__Receive()
+			data, err = self:Receive()
 		end
 
 		if not err then
-			headers = websocket.utilities.http_headers(headers)
+			headers = websocket.utilities.HTTPHeaders(headers)
 			if headers then
-				local key = headers["sec-websocket-key"]
-				key = strwithstr:format(key, magickey)
-				key = websocket.utilities.sha1(key, true)
-				key = websocket.utilities.base64encode(key)
-				key = wsaccept:format(headers["connection"], key)
+				local key = format(
+					"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: %s\r\nSec-WebSocket-Accept: %s\r\n\r\n",
+					headers["connection"],
+					websocket.utilities.Base64Encode(
+						websocket.utilities.SHA1(headers["sec-websocket-key"] .. "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+					)
+				)
 				self.state = self.socket:send(key) == #key and websocket.state.OPEN or websocket.state.CLOSED
 			end
 		else
 			print("websocket auth error: " .. err)
 		end
 	elseif self.state == websocket.state.OPEN then
-		local header, err = self:__Receive(2)
+		local header, err = self:Receive(2)
 		if not err then
-			local complete, length, opcode, masked, fin, mask = websocket.frame.decodeheader(header)
-			local data, err = self:__Receive(length - (complete and 0 or 2))
+			local complete, length, opcode, masked, fin, mask = websocket.frame.DecodeHeader(header)
+			local data, err = self:Receive(length - (complete and 0 or 2))
 			if not err then
 				if complete and self.recvcallback then
 					self.recvcallback(self, data, opcode, masked, fin)
 				elseif not complete then
-					complete, length, opcode, masked, fin, mask = websocket.frame.decodeheader(header .. data)
-					data, err = self:__Receive(length)
+					complete, length, opcode, masked, fin, mask = websocket.frame.DecodeHeader(header .. data)
+					data, err = self:Receive(length)
 					if not err then
 						if complete then
-							data = masked and websocket.utilities.xor_mask(data, mask) or data
+							data = masked and websocket.utilities.XORMask(data, mask) or data
 							self.recvcallback(self, data, opcode, masked, fin)
 						else
 							print("websocket completion error: something went terribly wrong")
@@ -127,14 +133,14 @@ function WSSERVERCONNECTION:__Think()
 	end
 end
 
-local WSSERVER = {}
-WSSERVER.__index = WSSERVER
+local SERVER = {}
+SERVER.__index = SERVER
 
-function WSSERVER:SetAcceptCallback(func)
+function SERVER:SetAcceptCallback(func)
 	self.acceptcallback = func
 end
 
-function WSSERVER:Shutdown()
+function SERVER:Shutdown()
 	if not self:IsValid() then
 		return
 	end
@@ -147,14 +153,14 @@ function WSSERVER:Shutdown()
 	self.socket:close()
 	self.socket = nil
 
-	hook.Remove("Think", self)
+	hook_Remove("Think", self)
 end
 
-function WSSERVER:IsValid()
+function SERVER:IsValid()
 	return self.socket ~= nil
 end
 
-function WSSERVER:__Think()
+function SERVER:Think()
 	if not self:IsValid() then
 		return
 	end
@@ -162,56 +168,53 @@ function WSSERVER:__Think()
 	local client = self.socket:accept()
 	if client then
 		client:settimeout(0)
-		local connection = setmetatable({}, WSSERVERCONNECTION)
-		connection.socket = client
-		connection.server = self
-		connection.state = websocket.state.CONNECTING
+		local connection = setmetatable({
+			socket = client,
+			server = self,
+			state = websocket.state.CONNECTING
+		}, CONNECTION)
+
 		if not self.acceptcallback or self.acceptcallback(self, connection) == true then
-			table.insert(self.connections, connection)
+			insert(self.connections, connection)
 			self.numconnections = self.numconnections + 1
 		end
 	end
 
-	local r = 0
 	for i = 1, self.numconnections do
-		if i > self.numconnections - r then
-			break
-		end
-
-		self.connections[i - r]:__Think()
-		if self.connections[i - r]:GetState() == websocket.state.CLOSED then
-			table.remove(self.connections, i - r)
+		self.connections[i]:Think()
+		if self.connections[i]:GetState() == websocket.state.CLOSED then
+			remove(self.connections, i)
 			self.numconnections = self.numconnections - 1
-			r = r + 1
+			i = i - 1
 		end
 	end
 end
 
 function websocket.CreateServer(addr, port, queue) -- non-blocking and max queue of 5 by default
-	assert(addr and port, "address or port not provided to create websocket server")
+	assert(addr ~= nil and port ~= nil, "address or port not provided to create websocket server")
 
-	local wsserver = setmetatable({}, WSSERVER)
-	wsserver.socket = assert(socket.tcp(), "failed to create socket")
-	wsserver.socket:settimeout(0)
-	wsserver.socket:bind(addr, port)
-	wsserver.socket:listen(queue or 5)
+	local server = setmetatable({
+		socket = assert(socket.tcp(), "failed to create socket"),
+		numconnections = 0,
+		connections = {}
+	}, SERVER)
+	server.socket:settimeout(0)
+	server.socket:bind(addr, port)
+	server.socket:listen(queue or 5)
 
-	wsserver.numconnections = 0
-	wsserver.connections = {}
+	hook_Add("Think", server, SERVER.Think)
 
-	hook.Add("Think", wsserver, WSSERVER.__Think)
-
-	return wsserver
+	return server
 end
 
-local WSCLIENT = {}
-WSCLIENT.__index = WSCLIENT
+local CLIENT = {}
+CLIENT.__index = CLIENT
 
-function WSCLIENT:SetReceiveCallback(func)
+function CLIENT:SetReceiveCallback(func)
 	self.recvcallback = func
 end
 
-function WSCLIENT:Shutdown()
+function CLIENT:Shutdown()
 	if not self:IsValid() then
 		return
 	end
@@ -220,13 +223,15 @@ function WSCLIENT:Shutdown()
 	self.socket:close()
 	self.socket = nil
 	self.state = websocket.state.CLOSED
+
+	hook_Remove("Think", self)
 end
 
-function WSCLIENT:IsValid()
+function CLIENT:IsValid()
 	return self.socket ~= nil
 end
 
-function WSCLIENT:GetRemoteAddress()
+function CLIENT:GetRemoteAddress()
 	if not self:IsValid() then
 		return "", 0
 	end
@@ -234,35 +239,38 @@ function WSCLIENT:GetRemoteAddress()
 	return self.socket:getsockname()
 end
 
-function WSCLIENT:GetState()
+function CLIENT:GetState()
 	return self.state
 end
 
-function WSCLIENT:Send(data, opcode, fin)
+function CLIENT:Send(data, opcode, fin)
 	if not self:IsValid() then
 		return false
 	end
 
-	local data = websocket.frame.encode(data, opcode, true, fin)
+	local data = websocket.frame.Encode(data, opcode, true, fin)
 	return self.socket:send(data) == #data
 end
 
-local wsclient = "GET /%s HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n"
-
-function WSCLIENT:__Think()
+function CLIENT:Think()
 	if not self:IsValid() then
 		return
 	end
 
 	if self.state == websocket.state.CONNECTING then
 		if not self.key then
-			self.key = {}
-			for i = 1, 16 do
-				self.key[i] = math.random(0, 255)
-			end
-			self.key = string.char(unpack(self.key))
-			self.key = websocket.utilities.base64encode(self.key)
-			local handshake = wsclient:format(path, host, self.key)
+			self.key = websocket.utilities.Base64Encode(char(
+				random(0, 255), random(0, 255), random(0, 255), random(0, 255),
+				random(0, 255), random(0, 255), random(0, 255), random(0, 255),
+				random(0, 255), random(0, 255), random(0, 255), random(0, 255),
+				random(0, 255), random(0, 255), random(0, 255), random(0, 255)
+			))
+			local handshake = format(
+				"GET /%s HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n",
+				self.path,
+				self.host,
+				self.key
+			)
 			if self.socket:send(handshake) ~= #handshake then
 				self.state = websocket.state.CLOSED
 			end
@@ -279,7 +287,7 @@ function WSCLIENT:__Think()
 	end
 
 	if page then
-		local headers = websocket.utilities.http_headers(page)
+		local headers = websocket.utilities.HTTPHeaders(page)
 		if headers then
 			self:Handshake(headers["connection"], headers["sec-websocket-key"])
 		end
@@ -289,19 +297,22 @@ function WSCLIENT:__Think()
 end
 
 function websocket.CreateClient(addr, port)
-	error("websocket client implementation not complete")
 	assert(addr and port, "address or port not provided to create websocket client")
 
-	local protocol, host, path = addr:match("^(wss?)://([^/]+)/?(%a*)$")
-	assert(protocol == "ws" and host, "bad address or protocol") -- wss brings more complexity
+	local protocol, host, path = match(addr, "^(wss?)://([^/]+)/?(%a*)$")
+	assert(protocol == "ws" and host ~= nil, "bad address or protocol") -- wss brings more complexity
 
-	local wsclient = setmetatable({}, WSCLIENT)
-	wsclient.socket = assert(socket.tcp(), "failed to create socket")
-	wsclient.socket:settimeout(0)
-	wsclient.socket:connect(addr, port)
-	wsclient.state = websocket.state.CONNECTING
+	local client = setmetatable({
+		socket = assert(socket.tcp(), "failed to create socket"),
+		protocol = protocol,
+		host = host,
+		path = path,
+		state = websocket.state.CONNECTING
+	}, CLIENT)
+	client.socket:settimeout(0)
+	client.socket:connect(addr, port)
 
-	hook.Add("Think", wsclient, WSCLIENT.__Think)
+	hook_Add("Think", client, CLIENT.Think)
 
-	return wsclient
+	return client
 end
