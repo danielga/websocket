@@ -95,9 +95,7 @@ function CONNECTION:Think()
 				local key = format(
 					"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: %s\r\nSec-WebSocket-Accept: %s\r\n\r\n",
 					headers["connection"],
-					websocket.utilities.Base64Encode(
-						websocket.utilities.SHA1(headers["sec-websocket-key"] .. "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
-					)
+					websocket.utilities.SHA1(headers["sec-websocket-key"] .. "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 				)
 				self.state = self.socket:send(key) == #key and websocket.state.OPEN or websocket.state.CLOSED
 			end

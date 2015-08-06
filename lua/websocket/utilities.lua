@@ -11,9 +11,15 @@ local insert, concat, remove = table.insert, table.concat, table.remove
 local byte, char, match, lower = string.byte, string.char, string.match, string.lower
 local bxor = bit.bxor
 
-include("sha1.lua")
-
 websocket.utilities.Base64Encode = util.Base64Encode
+
+require("crypt")
+
+local hasher = crypt.SHA1()
+local base64encode = websocket.utilities.Base64Encode
+function websocket.utilities.SHA1(data)
+	return base64encode(hasher:CalculateDigest(data))
+end
 
 function websocket.utilities.XORMask(data, mask)
 	local payload = #data
