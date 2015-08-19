@@ -1,12 +1,16 @@
+local websocket = websocket
+
 websocket.frame = websocket.frame or {}
 
-websocket.frame.CONTINUATION = 0
-websocket.frame.TEXT = 1
-websocket.frame.BINARY = 2
+local frame = websocket.frame
+
+frame.CONTINUATION = 0
+frame.TEXT = 1
+frame.BINARY = 2
 -- 3 to 7 reserved for more non-control frames
-websocket.frame.CLOSE = 8
-websocket.frame.PING = 9
-websocket.frame.PONG = 10
+frame.CLOSE = 8
+frame.PING = 9
+frame.PONG = 10
 -- 11 to 15 reserved for more control frames
 
 local floor = math.floor
@@ -14,7 +18,7 @@ local byte, char = string.byte, string.char
 local band, bor = bit.band, bit.bor
 local assert = assert
 
-function websocket.frame.EncodeHeader(length, opcode, mask, fin)
+function frame.EncodeHeader(length, opcode, mask, fin)
 	local op = opcode or 1
 	if fin == nil or fin == true then
 		op = bor(op, 0x80)
@@ -89,7 +93,7 @@ function websocket.frame.EncodeHeader(length, opcode, mask, fin)
 	)
 end
 
-function websocket.frame.DecodeHeader(header)
+function frame.DecodeHeader(header)
 	local headerlen = #header
 	local minlen = 2
 	assert(headerlen >= minlen, "websocket frame header needs to be at least 2 bytes long")
@@ -138,18 +142,18 @@ function websocket.frame.DecodeHeader(header)
 	return complete, minlen
 end
 
-function websocket.frame.Encode(data, opcode, masked, fin)
+function frame.Encode(data, opcode, masked, fin)
 	local mask
 	if masked == true then
 		mask = {random(0, 255), random(0, 255), random(0, 255), random(0, 255)}
 		data = websocket.utilities.XORMask(data, mask)
 	end
 
-	return websocket.frame.EncodeHeader(#data, opcode, mask, fin) .. data
+	return frame.EncodeHeader(#data, opcode, mask, fin) .. data
 end
 
-function websocket.frame.Decode(data)
-	local complete, length, opcode, masked, fin, mask = websocket.frame.DecodeHeader(data)
+function frame.Decode(data)
+	local complete, length, opcode, masked, fin, mask = frame.DecodeHeader(data)
 	assert(complete, "received an incomplete websocket frame to decode")
 
 	if masked then

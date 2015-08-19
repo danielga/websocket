@@ -1,68 +1,61 @@
+local websocket = websocket
+
 websocket.state = websocket.state or {}
-websocket.state.CONNECTING = 1
-websocket.state.OPEN = 2
-websocket.state.CLOSING = 3
-websocket.state.CLOSED = 4
+
+local state = websocket.state
+
+state.CONNECTING = 1
+state.OPEN = 2
+state.CLOSING = 3
+state.CLOSED = 4
 
 websocket.utilities = websocket.utilities or {}
 
-local unpack, assert, type, error = unpack, assert, type, error
-local insert, concat, remove = table.insert, table.concat, table.remove
-local byte, char, match, lower = string.byte, string.char, string.match, string.lower
+local utilities = websocket.utilities
+
+local assert, type, error = assert, type, error
+local concat = table.concat
+local byte, find, match, lower = string.byte, string.find, string.match, string.lower
 local bxor = bit.bxor
 
-websocket.utilities.Base64Encode = util.Base64Encode
+utilities.Base64Encode = util.Base64Encode
 
 require("crypt")
 
 local hasher = crypt.SHA1()
-local base64encode = websocket.utilities.Base64Encode
-function websocket.utilities.SHA1(data)
-	return base64encode(hasher:CalculateDigest(data))
+function utilities.SHA1(data)
+	return hasher:CalculateDigest(data)
 end
 
-function websocket.utilities.XORMask(data, mask)
-	local payload = #data
-	local transformed_arr = {}
-	for p = 1, payload, 2000 do
-		local transformed = {}
-		local top = p + 1999
-		local last = top > payload and payload or top
-		local original = {byte(data, p, last)}
-		for i = 1, #original do
-			local j = (i - 1) % 4 + 1
-			transformed[i] = bxor(original[i], mask[j])
-		end
-
-		local xored = char(unpack(transformed))
-		insert(transformed_arr, xored)
+function utilities.XORMask(data, mask)
+	local transformed = {}
+	for i = 1, #data do
+		transformed[i] = bxor(byte(data, i), mask[(i - 1) % 4 + 1])
 	end
 
-	return concat(transformed_arr)
+	return concat(transformed)
 end
 
-function websocket.utilities.HTTPHeaders(request)
+function utilities.HTTPHeaders(request)
 	assert(type(request) == "table", "parameter #1 is not a table")
-	assert(request[1] and match(request[1], ".*HTTP/1%.1"), "parameter #1 (table) doesn't contain data or doesn't contain a HTTP request on key 1")
-
-	remove(request, 1)
+	assert(request[1] and find(request[1], ".*HTTP/1%.1") ~=, "parameter #1 (table) doesn't contain data or doesn't contain a HTTP request on key 1")
 
 	local headers = {}
-	for i = 1, #request do
-		local line = request[1]
+	for i = 2, #request do
+		local line = request[i]
 		local name, val = match(line, "([^%s]+)%s*:%s*([^\r\n]+)")
-		if name and val then
+		if name ~= nil and val ~= nil then
 			name = lower(name)
-			if not match(name, "sec%-websocket") then
+			if not find(name, "sec%-websocket") then
 				val = lower(val)
 			end
 
-			if not headers[name] then
+			if headers[name] == nil then
 				headers[name] = val
 			else
 				headers[name] = headers[name] .. "," .. val
 			end
-		elseif line == "" then
+		elseif #line == 0 then
 			break
 		else
 			error(line .. "(" .. #line .. ")")
