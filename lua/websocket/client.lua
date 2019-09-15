@@ -1,6 +1,6 @@
 local websocket = websocket
-local frame = = websocket.frame
-local utilities = = websocket.utilities
+local frame = websocket.frame
+local utilities = websocket.utilities
 
 local socket = require("socket") or socket
 

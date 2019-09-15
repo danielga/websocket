@@ -1,5 +1,5 @@
 local websocket = websocket
-local frame = = websocket.frame
+local frame = websocket.frame
 local utilities = websocket.utilities
 
 local socket = require("socket") or socket
@@ -201,7 +201,7 @@ function websocket.CreateServer(addr, port, queue) -- non-blocking and max queue
 		connections = {}
 	}, SERVER)
 	server.socket:settimeout(0)
-	server.socket:bind(addr, port)
+	print(server.socket:bind(addr, port))
 	server.socket:listen(queue or 5)
 
 	hook_Add("Think", server, SERVER.Think)

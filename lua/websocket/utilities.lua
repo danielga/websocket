@@ -38,7 +38,7 @@ end
 
 function utilities.HTTPHeaders(request)
 	assert(type(request) == "table", "parameter #1 is not a table")
-	assert(request[1] and find(request[1], ".*HTTP/1%.1") ~=, "parameter #1 (table) doesn't contain data or doesn't contain a HTTP request on key 1")
+	assert(request[1] and find(request[1], ".*HTTP/1%.1"), "parameter #1 (table) doesn't contain data or doesn't contain a HTTP request on key 1")
 
 	local headers = {}
 	for i = 2, #request do

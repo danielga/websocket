@@ -52,7 +52,7 @@ function frame.EncodeHeader(length, opcode, mask, fin)
 			op,
 			0xFE,
 			floor(length / 0x100) % 0x100,
-			length % 0x100
+			length % 0x100,
 			mask[1],
 			mask[2],
 			mask[3],
