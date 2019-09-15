@@ -13,6 +13,7 @@ local Base64Encode = utilities.Base64Encode
 local HTTPHeaders = utilities.HTTPHeaders
 local Encode = frame.Encode
 
+local state = websocket.state
 local CONNECTING, CLOSED = state.CONNECTING, state.CLOSED
 
 local CLIENT = {}

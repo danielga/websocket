@@ -13,6 +13,7 @@ local Base64Encode, SHA1 = utilities.Base64Encode, utilities.SHA1
 local HTTPHeaders, XORMask = utilities.HTTPHeaders, utilities.XORMask
 local Encode, DecodeHeader = frame.Encode, frame.DecodeHeader
 
+local state = websocket.state
 local CONNECTING, OPEN, CLOSED = state.CONNECTING, state.OPEN, state.CLOSED
 
 local CONNECTION = {}
