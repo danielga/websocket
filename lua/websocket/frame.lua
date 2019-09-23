@@ -16,6 +16,7 @@ frame.PONG = 10
 local floor = math.floor
 local byte, char = string.byte, string.char
 local band, bor = bit.band, bit.bor
+local rshift, lshift = bit.rshift, bit.lshift
 local assert = assert
 
 function frame.EncodeHeader(length, opcode, mask, fin)
@@ -24,7 +25,6 @@ function frame.EncodeHeader(length, opcode, mask, fin)
 		op = bor(op, 0x80)
 	end
 
-	local length = #data
 	if length <= 0x7D then
 		if mask == nil then
 			return char(op, length)
@@ -135,8 +135,8 @@ function frame.DecodeHeader(header)
 	end
 
 	if complete then
-		-- complete, length, opcode, masked, fin, mask
-		return complete, length, band(byte1, 0x10), masked, band(byte1, 0x80) ~= 0, mask
+		-- complete, length, opcode, masked, fin, mask, headerLen
+		return complete, length, band(byte1, 0x10), masked, band(byte1, 0x80) ~= 0, mask, minlen
 	end
 
 	return complete, minlen
@@ -152,13 +152,24 @@ function frame.Encode(data, opcode, masked, fin)
 	return frame.EncodeHeader(#data, opcode, mask, fin) .. data
 end
 
-function frame.Decode(data)
-	local complete, length, opcode, masked, fin, mask = frame.DecodeHeader(data)
-	assert(complete, "received an incomplete websocket frame to decode")
+function frame.EncodeClose(code, reason)
+	local out = char(
+		band(rshift(code, 8), 0xFF),
+		band(code, 0xFF)
+	)
 
-	if masked then
-		data = websocket.utilities.XORMask(data, mask)
+	if reason then
+		out = out .. tostring(reason)
 	end
 
-	return data, fin, opcode, extradata
+	return out
+end
+
+function frame.DecodeClose(data)
+	assert(#data >= 2, "websocket close frame needs to be at least 2 bytes long")
+
+	local byte1 = byte(data, 1)
+	local byte2 = byte(data, 2)
+
+	return lshift(byte1, 8) + byte2, #data > 2 and header:sub(3, -1) or false
 end

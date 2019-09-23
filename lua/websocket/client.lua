@@ -5,7 +5,7 @@ local utilities = websocket.utilities
 local socket = require("socket") or socket
 
 local random = math.random
-local format, char, match = string.format, string.char, string.match
+local format, char, match, lower = string.format, string.char, string.match, string.lower
 local setmetatable, assert = setmetatable, assert
 local hook_Add, hook_Remove = hook.Add, hook.Remove
 
@@ -96,9 +96,14 @@ function CLIENT:Think()
 	end
 
 	if page ~= nil then
-		local headers = HTTPHeaders(page)
-		if headers ~= nil then
-			self:Handshake(headers["connection"], headers["sec-websocket-key"])
+		local data = HTTPHeaders(page)
+		if data ~= nil then
+			local secKey = data.headers["sec-websocket-key"]
+			if secKey ~= nil then
+				secKey = lower(secKey)
+			end
+
+			self:Handshake(data.headers["connection"], secKey)
 		end
 	end
 

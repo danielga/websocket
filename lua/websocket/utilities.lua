@@ -15,7 +15,7 @@ local utilities = websocket.utilities
 
 local assert, type, error = assert, type, error
 local concat = table.concat
-local byte, find, match, lower = string.byte, string.find, string.match, string.lower
+local char, byte, find, match, lower = string.char, string.byte, string.find, string.match, string.lower
 local bxor = bit.bxor
 
 utilities.Base64Encode = util.Base64Encode
@@ -30,15 +30,17 @@ end
 function utilities.XORMask(data, mask)
 	local transformed = {}
 	for i = 1, #data do
-		transformed[i] = bxor(byte(data, i), mask[(i - 1) % 4 + 1])
+		transformed[i] = char(bxor(byte(data, i), mask[(i - 1) % 4 + 1]))
 	end
 
 	return concat(transformed)
 end
 
 function utilities.HTTPHeaders(request)
-	assert(type(request) == "table", "parameter #1 is not a table")
-	assert(request[1] ~= nil and find(request[1], ".*HTTP/1%.1") ~= nil, "parameter #1 (table) doesn't contain data or doesn't contain a HTTP request on key 1")
+	assert(type(request) == "table" and #request ~= 0, "parameter #1 is not a table or is empty")
+
+	local httpOperation, url, httpVersion = match(request[1], "^[ ]*([A-Za-z]+)[ ]+(%S-)%s+HTTP/([%d%.]+)[\r\n ]*")
+	assert(httpVersion == "1.1", "Unsupported HTTP Version: only 1.1 is supported.")
 
 	local headers = {}
 	for i = 2, #request do
@@ -46,9 +48,6 @@ function utilities.HTTPHeaders(request)
 		local name, val = match(line, "([^%s]+)%s*:%s*([^\r\n]+)")
 		if name ~= nil and val ~= nil then
 			name = lower(name)
-			if not find(name, "sec%-websocket") then
-				val = lower(val)
-			end
 
 			if headers[name] == nil then
 				headers[name] = val
@@ -62,5 +61,9 @@ function utilities.HTTPHeaders(request)
 		end
 	end
 
-	return headers
+	return {
+		httpOperation = httpOperation,
+		url = url,
+		headers = headers
+	}
 end
