@@ -257,6 +257,14 @@ function SERVER:Think()
 				if connection.errorcallback ~= nil then
 					connection.errorcallback(connection, "websocket auth error: " .. err)
 				end
+				
+				if err == "closed" then
+					connection.state = CLOSED
+					if connection.closecallback ~= nil then
+						connection.closecallback(connection, 1006, "socket closed")
+					end
+					break
+				end
 			elseif #toSend == sentLen then
 				table.remove(connection.sendBuffer, 1)
 			else
